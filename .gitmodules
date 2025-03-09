@@ -1,0 +1,8 @@
+[submodule "services/go2-ros2/src"]
+	path = services/go2-ros2/src
+	url = https://github.com/abizovnuralem/go2_ros2_sdk.git
+	branch = main
+	shallow = true
+	fetchRecurseSubmodules = false
+	update = checkout
+	commit = 5e296bf0abf9c282498b5f94af4f44e78c405c74
