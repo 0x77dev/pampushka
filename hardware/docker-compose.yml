@@ -1,0 +1,30 @@
+# balena compatible docker compose file
+version: "2"
+
+services:
+  # Service for connection to the robot
+  go2-ros2:
+    image: ghcr.io/0x77dev/pampushka/go2-ros2:main
+    environment:
+      # Robot IP over accessory port exposed ethernet
+      - ROBOT_IP=192.168.123.161
+      # x11 forwarding for rviz2 and other GUI applications
+      - QT_X11_NO_MITSHM=1
+      - DISPLAY=gui:0
+
+    # Networking and IPC for ROS 2
+    network_mode: host
+    ipc: host
+    privileged: true
+
+  # X server with VNC for GUI applications
+  gui:
+    image: x11vnc/docker-desktop
+    volumes:
+      - xserver-data:/root/.Xauthority
+    ports:
+      - 5900:5900
+      - 6080:6080
+
+volumes:
+  xserver-data:

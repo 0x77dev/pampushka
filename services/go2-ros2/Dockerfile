@@ -1,6 +1,6 @@
-FROM ros:humble-ros-base AS builder
+FROM ros:humble-ros-base
 
-# Install build dependencies with cache mount
+# Install system dependencies
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -9,58 +9,36 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     lsb-release \
     python3-pip \
     portaudio19-dev \
+    mesa-utils \
+    libgl1-mesa-glx \
+    libgl1-mesa-dri \
+    ros-humble-rviz2 \
+    ros-humble-foxglove-bridge \
     software-properties-common
 
 # Create workspace
 WORKDIR /ros2_ws
 
-# Install Python requirements with pip cache
-COPY ./src/requirements.txt /ros2_ws/src/requirements.txt
+# Install specific numpy version first with pip cache
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install 'numpy<2.0.0' && \
-    pip install -r /ros2_ws/src/requirements.txt
+    pip install 'numpy<2.0.0'
 
 # Copy source code
 COPY ./src /ros2_ws/src
+
+# Install Python requirements with pip cache
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install -r /ros2_ws/src/requirements.txt
 
 # Install ROS dependencies with cache
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     . /opt/ros/${ROS_DISTRO}/setup.sh && \
-    apt-get update && \
     rosdep install --from-paths src --ignore-src -r -y
 
 # Build the workspace
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
     colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
-
-# Runtime stage
-FROM ros:humble-ros-base
-
-WORKDIR /ros2_ws
-
-# Copy source first for rosdep
-COPY ./src /ros2_ws/src
-
-# Install system dependencies and ROS dependencies in a single layer
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y --no-install-recommends \
-    python3-pip \
-    portaudio19-dev \
-    mesa-utils \
-    libgl1-mesa-glx \
-    libgl1-mesa-dri \
-    ros-humble-rviz2 \
-    && . /opt/ros/${ROS_DISTRO}/setup.sh \
-    && rosdep install --from-paths src --ignore-src -r -y
-
-# Install runtime Python dependencies
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install 'numpy<2.0.0'
-
-# Copy built workspace from builder stage
-COPY --from=builder /ros2_ws/install /ros2_ws/install
 
 # Set environment variables
 ENV ROBOT_IP="" \
