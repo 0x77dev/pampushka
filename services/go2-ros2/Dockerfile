@@ -11,11 +11,11 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     portaudio19-dev \
     software-properties-common
 
-# Create workspace and copy only necessary files for dependency installation
+# Create workspace
 WORKDIR /ros2_ws
-COPY ./src/requirements.txt /ros2_ws/src/requirements.txt
 
 # Install Python requirements with pip cache
+COPY ./src/requirements.txt /ros2_ws/src/requirements.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install 'numpy<2.0.0' && \
     pip install -r /ros2_ws/src/requirements.txt
@@ -37,7 +37,12 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh && \
 # Runtime stage
 FROM ros:humble-ros-base
 
-# Install runtime dependencies only
+WORKDIR /ros2_ws
+
+# Copy source first for rosdep
+COPY ./src /ros2_ws/src
+
+# Install system dependencies and ROS dependencies in a single layer
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y --no-install-recommends \
@@ -47,14 +52,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
     ros-humble-rviz2 \
-    ros-humble-foxglove-bridge \
-    ros-humble-slam-toolbox \
-    ros-humble-nav2-bringup \
-    ros-humble-pointcloud-to-laserscan \
-    ros-humble-joy \
-    ros-humble-teleop-twist-joy \
-    ros-humble-twist-mux \
-    && rm -rf /var/lib/apt/lists/*
+    && . /opt/ros/${ROS_DISTRO}/setup.sh \
+    && rosdep install --from-paths src --ignore-src -r -y
 
 # Install runtime Python dependencies
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -63,14 +62,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Copy built workspace from builder stage
 COPY --from=builder /ros2_ws/install /ros2_ws/install
 
-# Copy source for any interpreted files or scripts that might be needed
-COPY . /ros2_ws/src
-
 # Set environment variables
-ENV ROBOT_IP=""
-ENV CONN_TYPE="webrtc"
-ENV WEBRTC_SERVER_HOST="0.0.0.0"
-ENV WEBRTC_SERVER_PORT="9991"
+ENV ROBOT_IP="" \
+    CONN_TYPE="webrtc" \
+    WEBRTC_SERVER_HOST="0.0.0.0" \
+    WEBRTC_SERVER_PORT="9991"
 
 # Setup entrypoint
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
