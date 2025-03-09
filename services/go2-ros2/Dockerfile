@@ -47,6 +47,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     libgl1-mesa-glx \
     libgl1-mesa-dri \
     ros-humble-rviz2 \
+    ros-humble-foxglove-bridge \
+    ros-humble-slam-toolbox \
+    ros-humble-nav2-bringup \
+    ros-humble-pointcloud-to-laserscan \
+    ros-humble-joy \
+    ros-humble-teleop-twist-joy \
+    ros-humble-twist-mux \
     && rm -rf /var/lib/apt/lists/*
 
 # Install runtime Python dependencies
